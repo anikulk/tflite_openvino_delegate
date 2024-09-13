@@ -20,13 +20,11 @@ class GraphIteratorDelegate
         &params->input_tensors->data[params->input_tensors->size]);
     for (int i = 0; i < params->nodes_to_replace->size; i++) {
       const int delegate_node_id = params->nodes_to_replace->data[i];
-      std::cout << "delegate_node_id = " << delegate_node_id << "\n";
       TfLiteOpaqueNode* delegate_node;
       TfLiteRegistrationExternal* delegate_node_registration;
-      if (TfLiteOpaqueContextGetNodeAndRegistration(
+      TfLiteOpaqueContextGetNodeAndRegistration(
               context, delegate_node_id, &delegate_node,
-              &delegate_node_registration))
-        return;
+              &delegate_node_registration);
 
       int inputs_size = TfLiteOpaqueNodeNumberOfInputs(delegate_node);
       for (int k = 0; k < inputs_size; k++) {
@@ -48,20 +46,17 @@ class GraphIteratorDelegate
             TfLiteOpaqueTensorGetAllocationType(opaque_tensor);
         if (allocation_type == kTfLiteMmapRo) {
           data = TfLiteOpaqueTensorData(opaque_tensor);
-
-          /*     if (graph_delegate->CreateConstNode(context, t) != kTfLiteOk)
-                   return kTfLiteError; */
         }
         if (inputs.count(t) != 0) {
           if (data == nullptr) {
-            graph_nodes_.push_back(t);  // input : 0
+            input_nodes_.push_back(t);  // input : 0
           }
         }
       }
 
       for (int o = 0; o < params->output_tensors->size; o++) {
         const int output_tensor_idx = params->output_tensors->data[o];
-        graph_nodes_.push_back(output_tensor_idx);  // output-Id : 1
+        output_nodes_.push_back(output_tensor_idx);  // output-Id : 1
         std::cout << "delegate_node_id = " << delegate_node_id << "has o/p "
                   << output_tensor_idx << "\n";
       }
@@ -108,11 +103,11 @@ class GraphIteratorDelegate
   size_t node_index_ = 0;
   std::vector<int32_t> graph_nodes_;
   // std::vector<ov::Any> op_nodes_;
-  std::vector<ov::Any> output_nodes_;
-  std::vector<ov::Any> input_nodes_;
+  std::vector<int32_t> output_nodes_;
+  std::vector<int32_t> input_nodes_;
   TfLiteOpaqueContext* context_;
   const TfLiteOpaqueDelegateParams* params_;
-  std::unordered_set<int32_t> inputs_;
+  // std::unordered_set<int> ;
 };
 }  // namespace openvinodelegate
 }  // namespace tflite
