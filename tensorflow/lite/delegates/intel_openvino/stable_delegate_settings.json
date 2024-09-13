@@ -1,6 +1,10 @@
 {
   "stable_delegate_loader_settings": {
     "delegate_path": "bazel-bin/tensorflow/lite/delegates/intel_openvino/libtensorflowlite_openvino_stable_delegate.so"
-  }
+  },
   // Add concrete delegate settings for the openvino delegate.
+  "compilation_caching_settings": {
+  "cache_dir": "/home/adattatr/2024-oct",
+  "model_token": "logistic"
+  }
 }

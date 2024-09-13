@@ -9,11 +9,13 @@
 #include <filesystem>
 #include <memory>
 #include <string>
-#include <unordered_set>
 #include <unistd.h>
+#include <unordered_set>
 
-#include "tensorflow/lite/delegates/intel_openvino/operations/openvino_node_manager.h"
+#include "graph_iterator_delegate.h"
+#include "openvino/frontend/tensorflow_lite/frontend.hpp"
 #include "tensorflow/lite/c/c_api_opaque.h"
+#include "tensorflow/lite/delegates/intel_openvino/operations/openvino_node_manager.h"
 
 namespace tflite {
 namespace openvinodelegate {
@@ -31,7 +33,17 @@ TfLiteStatus OpenVINODelegateCore::Init() {
 
 TfLiteStatus OpenVINODelegateCore::InitializeBuilder(
     TfLiteOpaqueContext *context, const TfLiteOpaqueDelegateParams *params) {
-  if (context == nullptr || params == nullptr) return kTfLiteError;
+  if (context == nullptr || params == nullptr)
+    return kTfLiteError;
+
+  auto tflite_fe = std::make_shared<ov::frontend::tensorflow_lite::FrontEnd>();
+  std::shared_ptr<ov::frontend::tensorflow_lite::GraphIterator> graph_delegate =
+      std::make_shared<GraphIteratorDelegate>(context, params);
+  std::cout << "Size : ";
+  std::cout << graph_delegate->size();
+  auto input_model = tflite_fe->load(graph_delegate);
+  auto model = tflite_fe->convert(input_model);
+  /*
   const std::unordered_set<int> inputs(
       &params->input_tensors->data[0],
       &params->input_tensors->data[params->input_tensors->size]);
@@ -60,7 +72,8 @@ TfLiteStatus OpenVINODelegateCore::InitializeBuilder(
       return kTfLiteError;
     for (int k = 0; k < num_inputs; k++) {
       const int t = inputs_data[k];
-      if (t == kTfLiteOptionalTensor) continue;
+      if (t == kTfLiteOptionalTensor)
+        continue;
       const void *data = nullptr;
       auto opaque_tensor = TfLiteOpaqueContextGetOpaqueTensor(context, t);
       auto allocation_type = TfLiteOpaqueTensorGetAllocationType(opaque_tensor);
@@ -85,12 +98,14 @@ TfLiteStatus OpenVINODelegateCore::InitializeBuilder(
 
   if (openvino_graph_builder_->UpdateResultNodes(context, outputs_) !=
       kTfLiteOk)
-    return kTfLiteError;
+    return kTfLiteError; */
+  model_ = model;
   return kTfLiteOk;
 }
 
 TfLiteStatus OpenVINODelegateCore::BuildModel() {
-  if (!openvino_graph_builder_) return kTfLiteError;
+  if (!openvino_graph_builder_)
+    return kTfLiteError;
   model_ =
       std::make_shared<ov::Model>(openvino_graph_builder_->getResultNodes(),
                                   openvino_graph_builder_->getInputParams());
@@ -100,7 +115,7 @@ TfLiteStatus OpenVINODelegateCore::BuildModel() {
 TfLiteStatus OpenVINODelegateCore::BuildModelFromCache(
     TfLiteOpaqueContext *context, const TfLiteOpaqueDelegateParams *params,
     std::string cached_openvino_ir) {
-  
+
   const std::unordered_set<int> inputs(
       &params->input_tensors->data[0],
       &params->input_tensors->data[params->input_tensors->size]);
@@ -127,7 +142,8 @@ TfLiteStatus OpenVINODelegateCore::BuildModelFromCache(
         data = TfLiteOpaqueTensorData(opaque_tensor);
       }
       if (inputs.count(t) != 0) {
-        if (data == nullptr) compute_inputs_.push_back(t);
+        if (data == nullptr)
+          compute_inputs_.push_back(t);
       }
     }
   }
@@ -136,7 +152,8 @@ TfLiteStatus OpenVINODelegateCore::BuildModelFromCache(
     outputs_.push_back(output_tensor_idx);
   }
   model_ = ov_core_.read_model(cached_openvino_ir);
-  if (!model_) return kTfLiteError;
+  if (!model_)
+    return kTfLiteError;
   return kTfLiteOk;
 }
 
@@ -167,21 +184,25 @@ TfLiteStatus OpenVINODelegateCore::CreateModel(
 
     ov_core_.set_property(ov::cache_dir(delegate_options->cache_dir));
     if (access(delegate_options->cache_dir.c_str(), R_OK) == 0) {
-    // TFLITE_LOG(ERROR) << "Read access is there\n";
-    if (std::filesystem::exists(cache_file_name)) {
-      auto status = BuildModelFromCache(context, params, cache_file_name);
-      if (status == kTfLiteOk) return status;
+      // TFLITE_LOG(ERROR) << "Read access is there\n";
+      if (std::filesystem::exists(cache_file_name)) {
+        auto status = BuildModelFromCache(context, params, cache_file_name);
+        if (status == kTfLiteOk)
+          return status;
+      }
+      // TFLITE_LOG(ERROR) << "File absent\n";
     }
-    // TFLITE_LOG(ERROR) << "File absent\n";
-  }
   }
   // If cache file is absent or caching is not enabled
   // Initialize model from TFLite runtime
-  auto status = InitializeBuilder(context, params);
-  if (status != kTfLiteOk) return status;
 
-  status = BuildModel();
-  if (status != kTfLiteOk) return status;
+  auto status = InitializeBuilder(context, params);
+  if (status != kTfLiteOk)
+    return status;
+
+  //status = BuildModel();
+  //if (status != kTfLiteOk)
+  //    return status;
   if (!delegate_options->cache_dir.empty() &&
       !delegate_options->model_token.empty()) {
     std::string cache_file_name = delegate_options->cache_dir + "/" +
@@ -189,10 +210,11 @@ TfLiteStatus OpenVINODelegateCore::CreateModel(
     if (access(delegate_options->cache_dir.c_str(), W_OK) == 0) {
       ov::serialize(model_, cache_file_name);
     } else {
-      // TFLITE_LOG(ERROR) << "Serialization failed\n Continue from built model\n";
+      // TFLITE_LOG(ERROR) << "Serialization failed\n Continue from built
+      // model\n";
     }
   }
   return kTfLiteOk;
 }
-}  // namespace openvinodelegate
-}  // namespace tflite
+} // namespace openvinodelegate
+} // namespace tflite

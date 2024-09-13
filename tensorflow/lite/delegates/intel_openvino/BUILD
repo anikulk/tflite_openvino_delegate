@@ -1,6 +1,7 @@
-load("//tensorflow/lite:build_def.bzl", "tflite_copts", "tflite_linkopts_no_undefined","tflite_cc_shared_object")
-load("//tensorflow/lite:special_rules.bzl", "internal_visibility_allowlist", "tflite_portable_test_suite_combined")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load("//tensorflow:tensorflow.bzl", "get_compatible_with_portable")
+load("//tensorflow/lite:build_def.bzl", "tflite_cc_shared_object", "tflite_copts", "tflite_linkopts_no_undefined")
+load("//tensorflow/lite:special_rules.bzl", "internal_visibility_allowlist")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -12,7 +13,7 @@ exports_files([
 ])
 
 cc_library(
-    name ="openvino_graph_builder",
+    name = "openvino_graph_builder",
     srcs = ["openvino_graph_builder.cc"],
     hdrs = ["openvino_graph_builder.h"],
     tags = [
@@ -20,29 +21,30 @@ cc_library(
         "nobuilder",
     ],
     deps = [
-        "//tensorflow/lite/c:common",
-        "//tensorflow/lite/c:c_api_types",
+        "//tensorflow/lite:kernel_api",
         "//tensorflow/lite/c:c_api",
         "//tensorflow/lite/c:c_api_experimental",
+        "//tensorflow/lite/c:c_api_types",
+        "//tensorflow/lite/c:common",
         "//tensorflow/lite/delegates/intel_openvino/operations:operations_base",
-        "//tensorflow/lite:kernel_api",
+        "//tensorflow/lite/kernels:builtin_ops",
         "//tensorflow/lite/kernels:kernel_util",
         "//tensorflow/lite/tools:logging",
-        "//tensorflow/lite/kernels:builtin_ops",
         "@intel_openvino//:openvino",
     ],
 )
 
 cc_library(
-    name ="openvino_delegate_core",
-    srcs = ["openvino_delegate_core.cc"
-            "graph_iterator_delegate.cc",
+    name = "openvino_delegate_core",
+    srcs = [
+        "graph_iterator_delegate.cc",
+        "openvino_delegate_core.cc",
     ],
     hdrs = [
+        "delegate_decoder.h",
+        "graph_iterator_delegate.h",
         "openvino_delegate.h",
         "openvino_delegate_core.h",
-        "delegate_decoder.h", 
-        "graph_iterator_delegate.h"
     ],
     tags = [
         "manual",
@@ -51,22 +53,22 @@ cc_library(
     deps = [
         ":openvino_graph_builder",
         "//tensorflow/lite:kernel_api",
-        "//tensorflow/lite/tools:logging",
-        "//tensorflow/lite/c:common",
         "//tensorflow/lite/c:c_api",
-        "//tensorflow/lite/c:c_api_types",
         "//tensorflow/lite/c:c_api_experimental",
+        "//tensorflow/lite/c:c_api_types",
+        "//tensorflow/lite/c:common",
         "//tensorflow/lite/kernels:kernel_util",
+        "//tensorflow/lite/tools:logging",
         "@intel_openvino//:openvino",
     ],
 )
 
 cc_library(
-    name ="openvino_delegate_kernel",
+    name = "openvino_delegate_kernel",
     srcs = ["openvino_delegate_kernel.cc"],
     hdrs = [
-    "openvino_delegate.h",
-    "openvino_delegate_kernel.h",
+        "openvino_delegate.h",
+        "openvino_delegate_kernel.h",
     ],
     tags = [
         "manual",
@@ -75,14 +77,14 @@ cc_library(
     deps = [
         ":openvino_delegate_core",
         "//tensorflow/lite:kernel_api",
-        "//tensorflow/lite/tools:logging",
-        "//tensorflow/lite/c:common",
         "//tensorflow/lite/c:c_api",
-        "//tensorflow/lite/c:c_api_types",
         "//tensorflow/lite/c:c_api_experimental",
-        "//tensorflow/lite/delegates/utils:simple_opaque_delegate",
+        "//tensorflow/lite/c:c_api_types",
+        "//tensorflow/lite/c:common",
         "//tensorflow/lite/delegates/utils:simple_delegate",
+        "//tensorflow/lite/delegates/utils:simple_opaque_delegate",
         "//tensorflow/lite/kernels:kernel_util",
+        "//tensorflow/lite/tools:logging",
         "@intel_openvino//:openvino",
     ],
 )
@@ -98,18 +100,19 @@ cc_library(
     deps = [
         ":openvino_delegate_kernel",
         "//tensorflow/lite:kernel_api",
-        "//tensorflow/lite/c:common",
         "//tensorflow/lite/c:c_api",
+        "//tensorflow/lite/c:c_api_experimental",
         "//tensorflow/lite/c:c_api_types",
+        "//tensorflow/lite/c:common",
+        "//tensorflow/lite/delegates/utils:simple_opaque_delegate",
+        "//tensorflow/lite/kernels:builtin_ops",
         "//tensorflow/lite/kernels:padding",
         "//tensorflow/lite/kernels/internal:compatibility",
         "//tensorflow/lite/kernels/internal:tensor",
-        "//tensorflow/lite/c:c_api_experimental",
-        "//tensorflow/lite/delegates/utils:simple_opaque_delegate",
-        "//tensorflow/lite/kernels:builtin_ops",
         "@intel_openvino//:openvino",
     ],
 )
+
 cc_test(
     name = "openvino_graph_builder_test",
     srcs = ["openvino_graph_builder_test.cc"],
@@ -150,19 +153,19 @@ cc_library(
     ],
     copts = tflite_copts() + ["-fexceptions"],
     deps = [
+        ":openvino_delegate",
+        "//tensorflow/lite/acceleration/configuration/c:delegate_plugin",
+        "//tensorflow/lite/acceleration/configuration/c:stable_delegate",
         "//tensorflow/lite/c:c_api",
         "//tensorflow/lite/c:c_api_experimental",
         "//tensorflow/lite/c:c_api_types",
-        ":openvino_delegate",
         "//tensorflow/lite/c:common",
+        "//tensorflow/lite/delegates/external:external_delegate_interface",
+        "//tensorflow/lite/delegates/utils:simple_opaque_delegate",
+        "//tensorflow/lite/delegates/utils/experimental/stable_delegate:delegate_loader",
+        "//tensorflow/lite/delegates/utils/experimental/stable_delegate:stable_delegate_interface",
         "//tensorflow/lite/tools:command_line_flags",
         "//tensorflow/lite/tools:logging",
-        "//tensorflow/lite/delegates/utils:simple_opaque_delegate",
-        "//tensorflow/lite/delegates/utils/experimental/stable_delegate:stable_delegate_interface",
-        "//tensorflow/lite/acceleration/configuration/c:delegate_plugin",
-        "//tensorflow/lite/acceleration/configuration/c:stable_delegate",
-        "//tensorflow/lite/delegates/external:external_delegate_interface",
-        "//tensorflow/lite/delegates/utils/experimental/stable_delegate:delegate_loader",
     ],
 )
 
@@ -214,7 +217,7 @@ cc_library(
     deps = [
         ":openvino_delegate",
         "//tensorflow/lite/tools/delegates:delegate_provider_hdr",
-     ],
+    ],
     alwayslink = 1,
 )
 
@@ -274,9 +277,9 @@ filegroup(
     name = "openvino_delegate_tests",
     testonly = True,
     srcs = [
-        "openvino_graph_builder_test", 
         "openvino_delegate_core_test",
         "openvino_delegate_external_test",
         "openvino_delegate_test",
-    ]
+        "openvino_graph_builder_test",
+    ],
 )
