@@ -28,7 +28,7 @@ GraphIteratorDelegate::get_decoder() const {
   //
   TfLiteOpaqueNode* delegate_node;
   TfLiteRegistrationExternal* delegate_node_registration;
-  if (node_index_ == 0 || node_index_ == 2) {
+  if (node_index_ == 0 || node_index_ == 1) {
     // Decoder Tensor
     auto opaque_tensor =
         TfLiteOpaqueContextGetOpaqueTensor(context_, delegate_node_id);
