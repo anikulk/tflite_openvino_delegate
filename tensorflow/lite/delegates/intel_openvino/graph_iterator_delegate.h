@@ -1,6 +1,8 @@
 #include <unordered_set>
 
 #include "openvino/frontend/tensorflow_lite/graph_iterator.hpp"
+
+#include "openvino/frontend/tensorflow_lite/decoder.hpp"
 #include "tensorflow/lite/c/c_api_opaque.h"
 #include "tensorflow/lite/c/c_api_types.h"
 #include "tensorflow/lite/c/common.h"
@@ -12,21 +14,21 @@ class GraphIteratorDelegate
  public:
   GraphIteratorDelegate(TfLiteOpaqueContext* context,
                         const TfLiteOpaqueDelegateParams* params) {
-    context_ = context;
+     context_ = context;
     params_ = params;
 
     const std::unordered_set<int> inputs(
         &params->input_tensors->data[0],
         &params->input_tensors->data[params->input_tensors->size]);
+    
+  
     for (int i = 0; i < params->nodes_to_replace->size; i++) {
       const int delegate_node_id = params->nodes_to_replace->data[i];
-      std::cout << "delegate_node_id = " << delegate_node_id << "\n";
       TfLiteOpaqueNode* delegate_node;
       TfLiteRegistrationExternal* delegate_node_registration;
-      if (TfLiteOpaqueContextGetNodeAndRegistration(
+      TfLiteOpaqueContextGetNodeAndRegistration(
               context, delegate_node_id, &delegate_node,
-              &delegate_node_registration))
-        return;
+              &delegate_node_registration);
 
       int inputs_size = TfLiteOpaqueNodeNumberOfInputs(delegate_node);
       for (int k = 0; k < inputs_size; k++) {
@@ -48,25 +50,37 @@ class GraphIteratorDelegate
             TfLiteOpaqueTensorGetAllocationType(opaque_tensor);
         if (allocation_type == kTfLiteMmapRo) {
           data = TfLiteOpaqueTensorData(opaque_tensor);
-
-          /*     if (graph_delegate->CreateConstNode(context, t) != kTfLiteOk)
-                   return kTfLiteError; */
         }
+        if (allocation_type == kTfLiteMmapRo ||
+          allocation_type == kTfLitePersistentRo) {
+          data = TfLiteOpaqueTensorData(opaque_tensor);
+          // const_nodes_.push_back(t);
+      }
         if (inputs.count(t) != 0) {
           if (data == nullptr) {
-            graph_nodes_.push_back(t);  // input : 0
+            input_nodes_.push_back(t);  // input : 0
           }
         }
       }
-
-      for (int o = 0; o < params->output_tensors->size; o++) {
+    }   
+    for (int o = 0; o < params->output_tensors->size; o++) {
         const int output_tensor_idx = params->output_tensors->data[o];
-        graph_nodes_.push_back(output_tensor_idx);  // output-Id : 1
-        std::cout << "delegate_node_id = " << delegate_node_id << "has o/p "
-                  << output_tensor_idx << "\n";
-      }
+        output_nodes_.push_back(output_tensor_idx);  // output-Id : 1
+    }
+    for (int i = 0; i < params->nodes_to_replace->size; i++) {
+      const int delegate_node_id = params->nodes_to_replace->data[i];
       graph_nodes_.push_back(delegate_node_id);  // Operation : 0
     }
+/*
+   std::vector<std::shared_ptr<ov::frontend::tensorflow_lite::DecoderBase>> all_decoders;
+  const std::unordered_set<int> inputs(
+        &params->input_tensors->data[0],
+        &params->input_tensors->data[params->input_tensors->size]);
+*/
+        // 1. Put decoderbasetensors for all model i/p (inputs to the model )
+        // 2. Put decoderbasetensors for all model o/p (real model outputs)
+        // 3. put decoderbaseoperation for all op nodes in model in topological order 
+        // 
   }
 
   ~GraphIteratorDelegate() = default;
@@ -78,6 +92,9 @@ class GraphIteratorDelegate
   /*void fill_operation_list() {
 
   }*/
+  std::vector<int> get_compute_inputs() {
+    return input_nodes_;
+  }
   /// \brief Get a number of operation nodes in the graph
   size_t size() const override;
 
@@ -106,13 +123,15 @@ class GraphIteratorDelegate
 
  private:
   size_t node_index_ = 0;
+  int32_t input_index_ = 0;
+  int32_t output_index_ = 0;
   std::vector<int32_t> graph_nodes_;
-  // std::vector<ov::Any> op_nodes_;
-  std::vector<ov::Any> output_nodes_;
-  std::vector<ov::Any> input_nodes_;
+  std::vector<int32_t> const_nodes_;
+  std::vector<int32_t> output_nodes_;
+  std::vector<int> input_nodes_;
   TfLiteOpaqueContext* context_;
   const TfLiteOpaqueDelegateParams* params_;
-  std::unordered_set<int32_t> inputs_;
+  // std::unordered_set<int> ;
 };
 }  // namespace openvinodelegate
 }  // namespace tflite

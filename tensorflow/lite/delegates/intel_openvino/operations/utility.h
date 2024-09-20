@@ -13,6 +13,26 @@
 namespace tflite {
 namespace openvinodelegate {
 
+inline std::string get_activation_string(TfLiteFusedActivation activation) {
+  switch (activation) {
+    case kTfLiteActNone:
+      return "NONE";
+    case kTfLiteActRelu:
+      return "RELU";
+    case kTfLiteActReluN1To1:
+      return "RELU_N1_TO_1";
+    case kTfLiteActRelu6:
+      return "RELU6";
+    case kTfLiteActTanh:
+      return "TANH";
+      // TODO: add support for kTfLiteActSignBit
+    case kTfLiteActSigmoid:
+      return "SIGMOID";
+    default:
+      return nullptr;
+  }
+  }
+
 inline ov::element::Type GetOVElementType(TfLiteType tensor_type) {
   ov::element::Type ov_element_type;
   switch (tensor_type) {
