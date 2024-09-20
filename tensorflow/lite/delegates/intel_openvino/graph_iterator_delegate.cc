@@ -30,7 +30,6 @@ GraphIteratorDelegate::get_decoder() const {
     auto delegate_node_id = graph_nodes_[node_index_ - output_nodes_.size() - input_nodes_.size() - const_nodes_.size()];
     TfLiteOpaqueNode* delegate_node;
     TfLiteRegistrationExternal* delegate_node_registration;
-
     TfLiteOpaqueContextGetNodeAndRegistration(context_, delegate_node_id,
                                               &delegate_node,
                                               &delegate_node_registration);
