@@ -1,12 +1,14 @@
 #include "openvino/frontend/tensorflow_lite/decoder.hpp"
 #include "tensorflow/lite/tools/logging.h"
+#include "tensorflow/lite/c/builtin_op_data.h"
+#include "operations/utility.h"
 
 struct TensorMetaInfo {
   std::shared_ptr<ov::frontend::tensorflow_lite::QuantizationInfo>
       m_quantization_info;
   std::shared_ptr<ov::frontend::tensorflow_lite::SparsityInfo> m_sparsity_info;
-  ov::PartialShape m_partial_shape;  // Can be set up
-  ov::element::Type m_element_type;  // Can be set up
+  ov::PartialShape m_partial_shape;
+  ov::element::Type m_element_type;
   const uint8_t *m_tensor_data;
   std::string m_tensor_name;
 };
@@ -19,11 +21,13 @@ class DelegateDecoderOperation
       std::vector<ov::frontend::tensorflow_lite::TensorMetaInfo>
           input_tensor_info,
       std::vector<ov::frontend::tensorflow_lite::TensorMetaInfo>
-          output_tensor_info) {
+          output_tensor_info, void* builtin_data) {
     op_type_ = type;
     op_name_ = name;
     input_tensor_info_ = input_tensor_info;
     output_tensor_info_ = output_tensor_info;
+    builtin_data_ = builtin_data;
+
   };
 
   /// \brief Get input tensor info
@@ -49,7 +53,7 @@ class DelegateDecoderOperation
   }  //
 
   /// \brief Get a number of outputs
-  size_t get_output_size() const override { return input_tensor_info_.size(); }
+  size_t get_output_size() const override { return output_tensor_info_.size(); }
 
   /// \brief Get output tensor name by index
   std::string get_output_tensor_name(size_t idx) const override {
@@ -60,9 +64,32 @@ class DelegateDecoderOperation
   ov::element::Type get_output_tensor_type(size_t idx) const override {
     return output_tensor_info_[idx].m_element_type;
   }
+
+  
   ov::Any get_attribute(const std::string &name) const override {
-    std::cout << "Not implemented";
-  };
+   if (name == "fused_activation_function" && op_type_ == "ADD")  {
+    TfLiteAddParams* data  = reinterpret_cast<TfLiteAddParams*>(builtin_data_);
+    return tflite::openvinodelegate::get_activation_string(data->activation);
+   }
+   else if (name == "new_shape" && op_type_ == "RESHAPE") {
+        TfLiteReshapeParams* data = reinterpret_cast<TfLiteReshapeParams*>(builtin_data_);
+        if (data->num_dimensions == 0) {
+          return {};
+        }
+        else {
+          const auto new_shape = std::vector<int32_t>(data->shape,  data->shape + data->num_dimensions);
+          return new_shape;
+        }
+   }
+  }
+
+  void set_op_builtin_data(void* builtin_data) {
+    builtin_data_ = builtin_data;
+  }
+
+  void* get_op_builtin_data() {
+    return builtin_data_;
+  }
 
   const std::string &get_op_type() const override { return op_type_; };
   const std::string &get_op_name() const override { return op_name_; };
@@ -79,6 +106,7 @@ class DelegateDecoderOperation
   std::vector<ov::frontend::tensorflow_lite::TensorMetaInfo> input_tensor_info_;
   std::vector<ov::frontend::tensorflow_lite::TensorMetaInfo>
       output_tensor_info_;
+  void* builtin_data_;
 };
 
 class DelegateDecoderTensor

@@ -39,17 +39,13 @@ TfLiteStatus OpenVINODelegateCore::InitializeBuilder(
   auto tflite_fe = std::make_shared<ov::frontend::tensorflow_lite::FrontEnd>();
   std::shared_ptr<ov::frontend::tensorflow_lite::GraphIterator> graph_delegate =
       std::make_shared<GraphIteratorDelegate>(context, params);
-  std::cout << "Size : ";
-  std::cout << graph_delegate->size();
+  std::cout << "Num entries in graph_delegate " << graph_delegate->size();
   auto input_model = tflite_fe->load(graph_delegate);
   auto model = tflite_fe->convert(input_model);
-  /*
+  
   const std::unordered_set<int> inputs(
       &params->input_tensors->data[0],
       &params->input_tensors->data[params->input_tensors->size]);
-
-  openvino_graph_builder_ =
-      std::make_unique<OpenVINOGraphBuilder>(std::make_unique<NodeManager>());
 
   for (int o = 0; o < params->output_tensors->size; o++) {
     const int output_tensor_idx = params->output_tensors->data[o];
@@ -79,26 +75,16 @@ TfLiteStatus OpenVINODelegateCore::InitializeBuilder(
       auto allocation_type = TfLiteOpaqueTensorGetAllocationType(opaque_tensor);
       if (allocation_type == kTfLiteMmapRo) {
         data = TfLiteOpaqueTensorData(opaque_tensor);
-        if (openvino_graph_builder_->CreateConstNode(context, t) != kTfLiteOk)
-          return kTfLiteError;
       }
       if (inputs.count(t) != 0) {
         if (data == nullptr) {
-          if (openvino_graph_builder_->AddInputParams(opaque_tensor, t) !=
-              kTfLiteOk)
-            return kTfLiteError;
           compute_inputs_.push_back(t);
         }
       }
     }
-    if (openvino_graph_builder_->CreateNodeFromTfLiteOp(
-            delegate_node_registration, delegate_node, context) != kTfLiteOk)
-      return kTfLiteError;
+
   }
 
-  if (openvino_graph_builder_->UpdateResultNodes(context, outputs_) !=
-      kTfLiteOk)
-    return kTfLiteError; */
   model_ = model;
   return kTfLiteOk;
 }

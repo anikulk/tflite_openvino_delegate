@@ -22,9 +22,12 @@ bool GraphIteratorDelegate::is_end() const {
 
 std::shared_ptr<ov::frontend::tensorflow_lite::DecoderBase>
 GraphIteratorDelegate::get_decoder() const {
+  // size() of all decoders 
+  // return all_decoders[node_index]
+
   // operation
-  if (node_index_ >= output_nodes_.size() + input_nodes_.size() ) {
-    auto delegate_node_id = graph_nodes_[node_index_ - output_nodes_.size() - input_nodes_.size() ];
+  if (node_index_ >= output_nodes_.size() + input_nodes_.size() + const_nodes_.size() ) {
+    auto delegate_node_id = graph_nodes_[node_index_ - output_nodes_.size() - input_nodes_.size() - const_nodes_.size()];
     TfLiteOpaqueNode* delegate_node;
     TfLiteRegistrationExternal* delegate_node_registration;
 
@@ -35,11 +38,18 @@ GraphIteratorDelegate::get_decoder() const {
     auto builtin_code =
         TfLiteRegistrationExternalGetBuiltInCode(delegate_node_registration);
     std::string op_type, op_name;
+
+    // move below logic to helper function;
     if (builtin_code == kTfLiteBuiltinLogistic) {
       op_type = "LOGISTIC";
-      op_name = op_type + "_" + "1";
-      std::cout << " Logistic\n";
     }
+    else if(builtin_code == kTfLiteBuiltinReshape) {
+      op_type = "RESHAPE";
+    }
+    else if(builtin_code == kTfLiteBuiltinAdd) {
+      op_type = "ADD";   
+    }
+    op_name = op_type + "_" + std::to_string(node_index_);
     int num_inputs = 0;
     const int* input_data = nullptr;
     int intput_index;
@@ -47,8 +57,9 @@ GraphIteratorDelegate::get_decoder() const {
     std::vector<ov::frontend::tensorflow_lite::TensorMetaInfo> input_meta_info;
     std::vector<ov::frontend::tensorflow_lite::TensorMetaInfo> output_meta_info;
     for (int k = 0; k < num_inputs; k++) {
+      std::cout << "Line number : " << __LINE__ << " in file " << __FILE__<< ":::> input: " << input_data[k] << "\n";
       auto opaque_tensor =
-          TfLiteOpaqueContextGetOpaqueTensor(context_, delegate_node_id);
+          TfLiteOpaqueContextGetOpaqueTensor(context_, input_data[k]);
       TfLiteType type = TfLiteOpaqueTensorType(opaque_tensor);
       auto ov_element_type = GetOVElementType(type);
       int32_t num_dims = TfLiteOpaqueTensorNumDims(opaque_tensor);
@@ -60,9 +71,18 @@ GraphIteratorDelegate::get_decoder() const {
       ov::frontend::tensorflow_lite::TensorMetaInfo tensor_meta_info;
       tensor_meta_info.m_partial_shape = tensor_shape;
       tensor_meta_info.m_element_type = ov_element_type;
-      tensor_meta_info.m_tensor_name = "input";
+      tensor_meta_info.m_tensor_name = TfLiteOpaqueTensorName(opaque_tensor); // "input";
+      tensor_meta_info.m_tensor_data  = (const uint8_t*)TfLiteOpaqueTensorData(opaque_tensor);
+      if (tensor_meta_info.m_tensor_data == NULL) {
+        std::cout << "Line number : " << __LINE__ << " in file " << __FILE__<< ":::> nullptr : node_index = " << node_index_ << " delegate_node_id = " << delegate_node_id << "\n";
+      }
+      else {
+        std::cout << "Line number : " << __LINE__ << " in file " << __FILE__<< ":::> not a  nullptr : node_index = " << node_index_ << " delegate_node_id = " << delegate_node_id << "\n";
+      } 
+
 
       input_meta_info.push_back(tensor_meta_info);
+      std::cout << __FILE__ << " " << __LINE__<< " input_meta_info[" << k << "] = " << input_meta_info[k].m_tensor_name << "\n";
     }
     int num_outputs = 0;
     const int* output_data = nullptr;
@@ -70,7 +90,7 @@ GraphIteratorDelegate::get_decoder() const {
     TfLiteOpaqueNodeOutputs(delegate_node, &output_data, &num_outputs);
     for (int k = 0; k < num_outputs; k++) {
       auto opaque_tensor =
-          TfLiteOpaqueContextGetOpaqueTensor(context_, delegate_node_id);
+          TfLiteOpaqueContextGetOpaqueTensor(context_, output_data[k]);
       TfLiteType type = TfLiteOpaqueTensorType(opaque_tensor);
       auto ov_element_type = GetOVElementType(type);
       int32_t num_dims = TfLiteOpaqueTensorNumDims(opaque_tensor);
@@ -82,14 +102,17 @@ GraphIteratorDelegate::get_decoder() const {
       ov::frontend::tensorflow_lite::TensorMetaInfo tensor_meta_info;
       tensor_meta_info.m_partial_shape = tensor_shape;
       tensor_meta_info.m_element_type = ov_element_type;
-      tensor_meta_info.m_tensor_name = "output";
+      tensor_meta_info.m_tensor_name = TfLiteOpaqueTensorName(opaque_tensor); // "input";
+
       output_meta_info.push_back(tensor_meta_info);
     }
+
     return std::make_shared<DelegateDecoderOperation>(
-        op_type, op_name, input_meta_info, output_meta_info);
+        op_type, op_name, input_meta_info, output_meta_info, TfLiteOpaqueNodeGetBuiltinData(delegate_node));
   }
   else if (node_index_ < input_nodes_.size()) {
     auto delegate_node_id = input_nodes_[node_index_];
+    std::cout << __FILE__ << " " << __PRETTY_FUNCTION__ << " " << __LINE__ << " input_node = " << node_index_ << " " << delegate_node_id << " \n";
     auto opaque_tensor =
         TfLiteOpaqueContextGetOpaqueTensor(context_, delegate_node_id);
     TfLiteType type = TfLiteOpaqueTensorType(opaque_tensor);
@@ -104,13 +127,15 @@ GraphIteratorDelegate::get_decoder() const {
     tensor_meta_info.m_partial_shape = tensor_shape;
     tensor_meta_info.m_element_type = ov_element_type;
 
-    int64_t input_index = 0;
+    int64_t input_index = node_index_;
     int64_t output_index = -1;
-      tensor_meta_info.m_tensor_name = "input";
-
+    tensor_meta_info.m_tensor_name = TfLiteOpaqueTensorName(opaque_tensor); //"input" + std::to_string(input_index);
+    // input_index_ = input_index_ + 1;
+    std::cout << __LINE__ << " " << __FILE__ << "Creating " << tensor_meta_info.m_tensor_name << " Decoder tensor ip \n";
+        std::cout << __LINE__ << " " << __FILE__ << input_index << " " << output_index << " Decoder tensor\n";  
     return std::make_shared<DelegateDecoderTensor>(
         tensor_meta_info, input_index /*node*/, output_index);
-  } else {
+  } else if (node_index_ >= input_nodes_.size() && node_index_ < (input_nodes_.size() + output_nodes_.size())) {
     auto delegate_node_id = output_nodes_[node_index_ - input_nodes_.size()];
         auto opaque_tensor =
         TfLiteOpaqueContextGetOpaqueTensor(context_, delegate_node_id);
@@ -125,15 +150,16 @@ GraphIteratorDelegate::get_decoder() const {
     ov::frontend::tensorflow_lite::TensorMetaInfo tensor_meta_info;
     tensor_meta_info.m_partial_shape = tensor_shape;
     tensor_meta_info.m_element_type = ov_element_type;
-
-    int64_t input_index = -1;
-    int64_t output_index = 0;
-      tensor_meta_info.m_tensor_name = "output";
-
+      int64_t input_index = -1;
+      int64_t output_index = node_index_ - input_nodes_.size();
+      tensor_meta_info.m_tensor_name = TfLiteOpaqueTensorName(opaque_tensor); // "output" + std::to_string(output_index);
+    std::cout << __LINE__ << " " << __FILE__ << "Creating " << tensor_meta_info.m_tensor_name << " Decoder tensor op\n";
+    std::cout << __LINE__ << " " << __FILE__ << input_index << " " << output_index << " Decoder tensor\n";
     return std::make_shared<DelegateDecoderTensor>(
         tensor_meta_info, input_index /*node*/, output_index);
-  }//
+  } 
 }
+
 
 size_t GraphIteratorDelegate::get_subgraph_size() const { return 0; }
 }  // namespace openvinodelegate
