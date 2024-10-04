@@ -80,7 +80,85 @@ class DelegateDecoderOperation
           const auto new_shape = std::vector<int32_t>(data->shape,  data->shape + data->num_dimensions);
           return new_shape;
         }
-   }
+   } else if (name == "strides" && op_type_ == "CONV_2D") {
+    TfLiteConvParams* data = reinterpret_cast<TfLiteConvParams*>(builtin_data_);
+        return std::vector<int64_t>{1,
+                                    static_cast<int64_t>(data->stride_height),
+                                    static_cast<int64_t>(data->stride_width),
+                                    1};
+    } else if (name == "padding" && op_type_ == "CONV_2D") {
+         TfLiteConvParams* data = reinterpret_cast<TfLiteConvParams*>(builtin_data_);
+        return "SAME";
+    } else if (name == "dilations" && op_type_ == "CONV_2D") {
+       TfLiteConvParams* data = reinterpret_cast<TfLiteConvParams*>(builtin_data_);
+        return std::vector<int64_t>{1,
+                                    static_cast<int64_t>(data->dilation_height_factor),
+                                    static_cast<int64_t>(data->dilation_width_factor),
+                                    1};
+    } else if (name == "data_format" && op_type_ == "CONV_2D") {
+        return "NHWC";
+    } else if (name == "activation" && op_type_ == "CONV_2D") {
+      TfLiteConvParams* data = reinterpret_cast<TfLiteConvParams*>(builtin_data_);
+    return tflite::openvinodelegate::get_activation_string(data->activation);
+    } 
+     else if (name == "strides" && op_type_ == "DEPTHWISE_CONV_2D") {
+    TfLiteDepthwiseConvParams* data = reinterpret_cast<TfLiteDepthwiseConvParams*>(builtin_data_);
+        return std::vector<int64_t>{1,
+                                    static_cast<int64_t>(data->stride_height),
+                                    static_cast<int64_t>(data->stride_width),
+                                    1};
+    } else if (name == "padding" && op_type_ == "DEPTHWISE_CONV_2D") {
+         TfLiteDepthwiseConvParams* data = reinterpret_cast<TfLiteDepthwiseConvParams*>(builtin_data_);
+        return "SAME";
+    } else if (name == "dilations" && op_type_ == "DEPTHWISE_CONV_2D") {
+       TfLiteDepthwiseConvParams* data = reinterpret_cast<TfLiteDepthwiseConvParams*>(builtin_data_);
+        return std::vector<int64_t>{1,
+                                    static_cast<int64_t>(data->dilation_height_factor),
+                                    static_cast<int64_t>(data->dilation_width_factor),
+                                    1};
+    } else if (name == "data_format" && op_type_ == "DEPTHWISE_CONV_2D") {
+        return "NHWC";
+    } else if (name == "activation" && op_type_ == "DEPTHWISE_CONV_2D") {
+      TfLiteDepthwiseConvParams* data = reinterpret_cast<TfLiteDepthwiseConvParams*>(builtin_data_);
+    return tflite::openvinodelegate::get_activation_string(data->activation);
+    } else if (name == "group" && op_type_ == "DEPTHWISE_CONV_2D") {
+        TfLiteDepthwiseConvParams* data = reinterpret_cast<TfLiteDepthwiseConvParams*>(builtin_data_);
+        return data->depth_multiplier;
+    } else if (name == "align_corners" && op_type_ == "RESIZE_BILINEAR") {
+        TfLiteResizeBilinearParams* data = reinterpret_cast<TfLiteResizeBilinearParams*>(builtin_data_);
+        return data->align_corners;
+    } else if (name == "half_pixel_centers" && op_type_ == "RESIZE_BILINEAR") {
+        TfLiteResizeBilinearParams* data = reinterpret_cast<TfLiteResizeBilinearParams*>(builtin_data_);
+        return data->half_pixel_centers;
+    } else if (name == "axis" && op_type_ == "CONCATENATION") {
+         TfLiteConcatenationParams* data = reinterpret_cast<TfLiteConcatenationParams*>(builtin_data_);
+        return static_cast<int64_t>(data->axis);
+    }
+         else if (name == "strides" && op_type_ == "AVERAGE_POOL_2D") {
+    TfLitePoolParams* data = reinterpret_cast<TfLitePoolParams*>(builtin_data_);
+        return std::vector<int64_t>{1,
+                                    static_cast<int64_t>(data->stride_height),
+                                    static_cast<int64_t>(data->stride_width),
+                                    1};
+    } else if (name == "padding" && op_type_ == "AVERAGE_POOL_2D") {
+         TfLitePoolParams* data = reinterpret_cast<TfLitePoolParams*>(builtin_data_);
+        return "SAME";
+    } else if (name == "ksize" && op_type_ == "AVERAGE_POOL_2D") {
+       TfLitePoolParams* data = reinterpret_cast<TfLitePoolParams*>(builtin_data_);
+        return std::vector<int64_t>{1,
+                                    static_cast<int64_t>(data->filter_height),
+                                    static_cast<int64_t>(data->filter_width),
+                                    1};
+    } else if (name == "data_format" && op_type_ == "AVERAGE_POOL_2D") {
+        return "NHWC";
+    } else if (name == "activation" && op_type_ == "AVERAGE_POOL_2D") {
+      TfLitePoolParams* data = reinterpret_cast<TfLitePoolParams*>(builtin_data_);
+    return tflite::openvinodelegate::get_activation_string(data->activation);
+    } else if (name == "beta" && op_type_ == "SOFTMAX") {
+      TfLiteSoftmaxParams* data = reinterpret_cast<TfLiteSoftmaxParams*>(builtin_data_);
+        return data->beta;
+    }
+   
   }
 
   void set_op_builtin_data(void* builtin_data) {

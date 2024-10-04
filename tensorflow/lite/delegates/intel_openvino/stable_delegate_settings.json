@@ -4,7 +4,7 @@
   },
   // Add concrete delegate settings for the openvino delegate.
   "compilation_caching_settings": {
-  "cache_dir": "/home/adattatr/2024-oct",
+  "cache_dir": "/home/vbenni/adattatr",
   "model_token": "logistic"
   }
 }

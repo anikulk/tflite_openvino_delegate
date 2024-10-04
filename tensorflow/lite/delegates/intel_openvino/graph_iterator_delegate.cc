@@ -48,6 +48,31 @@ GraphIteratorDelegate::get_decoder() const {
     else if(builtin_code == kTfLiteBuiltinAdd) {
       op_type = "ADD";   
     }
+    else if(builtin_code == kTfLiteBuiltinDequantize) {
+      op_type = "DEQUANTIZE";   
+    }
+    else if(builtin_code == kTfLiteBuiltinConv2d) {
+      op_type = "CONV_2D";   
+    }
+    else if(builtin_code == kTfLiteBuiltinDepthwiseConv2d) {
+      op_type = "DEPTHWISE_CONV_2D";   
+    }
+    else if(builtin_code == kTfLiteBuiltinConv2d) {
+      op_type = "CONV_2D";   
+    }
+    else if(builtin_code == kTfLiteBuiltinResizeBilinear) {
+      op_type = "RESIZE_BILINEAR";   
+    }
+    else if(builtin_code == kTfLiteBuiltinConcatenation) {
+      op_type = "CONCATENATION";   
+    }
+    else if(builtin_code == kTfLiteBuiltinAveragePool2d) {
+      op_type = "AVERAGE_POOL_2D";   
+    }
+    else if(builtin_code == kTfLiteBuiltinSoftmax) {
+      op_type = "SOFTMAX";   
+    }
+
     op_name = op_type + "_" + std::to_string(node_index_);
     int num_inputs = 0;
     const int* input_data = nullptr;

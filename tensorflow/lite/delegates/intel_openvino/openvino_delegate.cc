@@ -83,11 +83,44 @@ bool OpenVINODelegate::CheckNodeSupportByOpenVINO(
       return CheckDataTypeSupported(context, node,
                                     {{kTfLiteFloat32}, {kTfLiteFloat32}}) &&
              CheckDims(context, node, {{1, 2, 3, 4}, {1, 2, 3, 4}});
+    } 
+    case kTfLiteBuiltinDequantize: {
+      return CheckDataTypeSupported(context, node, {{kTfLiteFloat16}});
+    }
+    case kTfLiteBuiltinResizeBilinear: {
+      return CheckDataTypeSupported(context, node,
+                                    {{kTfLiteFloat32}, {kTfLiteInt32}});
+    } 
+    case kTfLiteBuiltinRelu: {
+      return CheckDataTypeSupported(context, node, {{kTfLiteFloat32}});
+    }
+    case kTfLiteBuiltinRelu6: {
+      return CheckDataTypeSupported(context, node, {{kTfLiteFloat32}});
+    }
+    case kTfLiteBuiltinLogistic: {
+      return CheckDataTypeSupported(context, node, {{kTfLiteFloat32}});
+    }
+    case kTfLiteBuiltinHardSwish: {
+      return CheckDataTypeSupported(context, node, {{kTfLiteFloat32}});
+    }
+    case kTfLiteBuiltinMul: {
+      return CheckDataTypeSupported(context, node,
+                                    {{kTfLiteFloat32}, {kTfLiteFloat32}}) &&
+             CheckDims(context, node, {{1, 2, 3, 4}, {1, 2, 3, 4}});
+    } 
+     case kTfLiteBuiltinSoftmax: {
+      auto *softmax_params = reinterpret_cast<TfLiteSoftmaxParams *>(
+          TfLiteOpaqueNodeGetBuiltinData(node));
+      if (softmax_params->beta != 1.0f) {
+        // TFLITE_LOG(INFO) << "Unsupported Softmax op, beta value is not 1.0";
+        return false;
+      }
+      return CheckDataTypeSupported(context, node, {{kTfLiteFloat32}});
     }
     case kTfLiteBuiltinAveragePool2d: {
       return CheckDataTypeSupported(context, node, {{kTfLiteFloat32}}) &&
              CheckDims(context, node, {{4}});
-    }
+    } 
     case kTfLiteBuiltinConv2d: {
       if (num_inputs == 2) {
         return CheckDataTypeSupported(context, node,
@@ -122,39 +155,6 @@ bool OpenVINODelegate::CheckNodeSupportByOpenVINO(
       } else {
         return false;
       }
-    }
-    case kTfLiteBuiltinDequantize: {
-      return CheckDataTypeSupported(context, node, {{kTfLiteFloat16}});
-    }
-    case kTfLiteBuiltinResizeBilinear: {
-      return CheckDataTypeSupported(context, node,
-                                    {{kTfLiteFloat32}, {kTfLiteInt32}});
-    }
-    case kTfLiteBuiltinRelu: {
-      return CheckDataTypeSupported(context, node, {{kTfLiteFloat32}});
-    }
-    case kTfLiteBuiltinRelu6: {
-      return CheckDataTypeSupported(context, node, {{kTfLiteFloat32}});
-    }
-    case kTfLiteBuiltinLogistic: {
-      return CheckDataTypeSupported(context, node, {{kTfLiteFloat32}});
-    }
-    case kTfLiteBuiltinHardSwish: {
-      return CheckDataTypeSupported(context, node, {{kTfLiteFloat32}});
-    }
-    case kTfLiteBuiltinMul: {
-      return CheckDataTypeSupported(context, node,
-                                    {{kTfLiteFloat32}, {kTfLiteFloat32}}) &&
-             CheckDims(context, node, {{1, 2, 3, 4}, {1, 2, 3, 4}});
-    }
-    case kTfLiteBuiltinSoftmax: {
-      auto *softmax_params = reinterpret_cast<TfLiteSoftmaxParams *>(
-          TfLiteOpaqueNodeGetBuiltinData(node));
-      if (softmax_params->beta != 1.0f) {
-        // TFLITE_LOG(INFO) << "Unsupported Softmax op, beta value is not 1.0";
-        return false;
-      }
-      return CheckDataTypeSupported(context, node, {{kTfLiteFloat32}});
     }
     case kTfLiteBuiltinTanh: {
       return CheckDataTypeSupported(context, node, {{kTfLiteFloat32}});
